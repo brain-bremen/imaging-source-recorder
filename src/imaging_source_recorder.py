@@ -27,15 +27,7 @@ class ImagingSourceRecorder:
 
                 # Connect the buffer's chunk data to the device's property map
                 # This allows for properties backed by chunk data to be updated
-                # self.device_property_map.connect_chunkdata(buf)
-
-                # with self.shoot_photo_mutex:
-                #     if self.shoot_photo:
-                #         self.shoot_photo = False
-
-                #         # Send an event to the main thread with a reference to
-                #         # the main thread of our GUI.
-                #         QApplication.postEvent(self, GotPhotoEvent(buf))
+                self.grabber.device_property_map.connect_chunkdata(buf)
 
                 if self.capture_to_video and not self.video_capture_pause:
                     try:

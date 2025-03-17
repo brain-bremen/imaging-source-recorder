@@ -24,14 +24,7 @@ import imagingcontrol4 as ic4
 
 from resourceselector import ResourceSelector
 
-GOT_PHOTO_EVENT = QEvent.Type(QEvent.Type.User + 1)
 DEVICE_LOST_EVENT = QEvent.Type(QEvent.Type.User + 2)
-
-
-class GotPhotoEvent(QEvent):
-    def __init__(self, buffer: ic4.ImageBuffer):
-        QEvent.__init__(self, GOT_PHOTO_EVENT)
-        self.image_buffer = buffer
 
 
 class MainWindow(QMainWindow):
@@ -53,9 +46,6 @@ class MainWindow(QMainWindow):
 
         self.device_file = appdata_directory + "/device.json"
         self.codec_config_file = appdata_directory + "/codecconfig.json"
-
-        self.shoot_photo_mutex = Lock()
-        self.shoot_photo = False
 
         self.recorder = ImagingSourceRecorder()
 
@@ -140,12 +130,6 @@ class MainWindow(QMainWindow):
         self.start_live_act.setCheckable(True)
         self.start_live_act.triggered.connect(self.startStopStream)
 
-        self.shoot_photo_act = QAction(
-            selector.loadIcon("images/photo.png"), "&Shoot Photo", self
-        )
-        self.shoot_photo_act.setStatusTip("Shoot and save a photo")
-        self.shoot_photo_act.triggered.connect(self.onShootPhoto)
-
         self.record_start_act = QAction(
             selector.loadIcon("images/recordstart.png"), "&Capture Video", self
         )
@@ -195,7 +179,6 @@ class MainWindow(QMainWindow):
         device_menu.addAction(self.close_device_act)
 
         capture_menu = self.menuBar().addMenu("&Capture")
-        capture_menu.addAction(self.shoot_photo_act)
         capture_menu.addAction(self.record_start_act)
         capture_menu.addAction(self.record_pause_act)
         capture_menu.addAction(self.record_stop_act)
@@ -210,7 +193,6 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         toolbar.addAction(self.start_live_act)
         toolbar.addSeparator()
-        toolbar.addAction(self.shoot_photo_act)
         toolbar.addSeparator()
         toolbar.addAction(self.record_start_act)
         toolbar.addAction(self.record_pause_act)
@@ -256,8 +238,6 @@ class MainWindow(QMainWindow):
     def customEvent(self, ev: QEvent):
         if ev.type() == DEVICE_LOST_EVENT:
             self.onDeviceLost()
-        elif ev.type() == GOT_PHOTO_EVENT:
-            self.savePhoto(ev.image_buffer)
 
     def onSelectDevice(self):
         dlg = ic4.pyside6.DeviceSelectionDialog(self.recorder.grabber, parent=self)
@@ -295,10 +275,6 @@ class MainWindow(QMainWindow):
 
         except ic4.IC4Exception as e:
             QMessageBox.critical(self, "", f"{e}", QMessageBox.StandardButton.Ok)
-
-    def onShootPhoto(self):
-        with self.shoot_photo_mutex:
-            self.shoot_photo = True
 
     def onUpdateStatisticsTimer(self):
         if not self.recorder.grabber.is_device_valid:
@@ -369,7 +345,6 @@ class MainWindow(QMainWindow):
         )
         self.start_live_act.setEnabled(self.recorder.grabber.is_device_valid)
         self.start_live_act.setChecked(self.recorder.grabber.is_streaming)
-        self.shoot_photo_act.setEnabled(self.recorder.grabber.is_streaming)
         self.record_stop_act.setEnabled(self.recorder.capture_to_video)
         self.record_pause_act.setChecked(self.recorder.video_capture_pause)
         self.record_start_act.setChecked(self.recorder.capture_to_video)
@@ -412,7 +387,7 @@ class MainWindow(QMainWindow):
 
             try:
                 self.recorder.video_writer.begin_file(
-                    full_path, self.sink.output_image_type, fps
+                    full_path, self.recorder.sink.output_image_type, fps
                 )
             except ic4.IC4Exception as e:
                 QMessageBox.critical(self, "", f"{e}", QMessageBox.StandardButton.Ok)
@@ -443,35 +418,3 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "", f"{e}", QMessageBox.StandardButton.Ok)
 
         self.updateControls()
-
-    def savePhoto(self, image_buffer: ic4.ImageBuffer):
-        filters = [
-            "Bitmap(*.bmp)",
-            "JPEG (*.jpg)",
-            "Portable Network Graphics (*.png)",
-            "TIFF (*.tif)",
-        ]
-
-        dialog = QFileDialog(self, "Save Photo")
-        dialog.setNameFilters(filters)
-        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
-        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-        dialog.setDirectory(self.save_pictures_directory)
-
-        if dialog.exec():
-            selected_filter = dialog.selectedNameFilter()
-
-            full_path = dialog.selectedFiles()[0]
-            self.save_pictures_directory = QFileInfo(full_path).absolutePath()
-
-            try:
-                if selected_filter == filters[0]:
-                    image_buffer.save_as_bmp(full_path)
-                elif selected_filter == filters[1]:
-                    image_buffer.save_as_jpeg(full_path)
-                elif selected_filter == filters[2]:
-                    image_buffer.save_as_png(full_path)
-                else:
-                    image_buffer.save_as_tiff(full_path)
-            except ic4.IC4Exception as e:
-                QMessageBox.critical(self, "", f"{e}", QMessageBox.StandardButton.Ok)
