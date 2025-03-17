@@ -1,0 +1,47 @@
+{
+  "device": {
+    "model_name": "DMK 37BUX273",
+    "serial": "31220149",
+    "unique_name": "The Imaging Source Europe GmbH-ic4-gentl-u3v-31220149"
+  },
+  "driver_properties": {
+    "LinkCommandTimeout": 5000000.0
+  },
+  "properties": {
+    "AcquisitionFrameRate": 100.436,
+    "AutoFunctionsROIEnable": true,
+    "AutoFunctionsROIPreset": "AutoFunctionsROIPreset_Center50Pct",
+    "BlackLevel": 184.0,
+    "Brightness": 184,
+    "Contrast": 0,
+    "Denoise": 0,
+    "ExposureAuto": "Continuous",
+    "ExposureAutoHighlightReduction": false,
+    "ExposureAutoLowerLimit": 1.0,
+    "ExposureAutoReference": 128,
+    "ExposureAutoUpperLimitAuto": true,
+    "GPOut": 0,
+    "GainAuto": "Continuous",
+    "GainAutoLowerLimit": 0.0,
+    "GainAutoUpperLimit": 48.0,
+    "Gamma": 1.0,
+    "Height": 484,
+    "IMXLowLatencyTriggerMode": false,
+    "PixelFormat": "Mono8",
+    "ReverseX": false,
+    "ReverseY": false,
+    "Sharpness": 0,
+    "SoftwareTransformEnable": true,
+    "StrobeDelay": 0,
+    "StrobeEnable": "Off",
+    "StrobeOperation": "Exposure",
+    "StrobePolarity": "ActiveLow",
+    "ToneMappingEnable": false,
+    "ToneMappingGlobalBrightness": 0.0,
+    "ToneMappingIntensity": 0.0,
+    "TriggerActivation": "RisingEdge",
+    "TriggerDelay": 3.1,
+    "TriggerMode": "Off",
+    "Width": 720
+  }
+}
