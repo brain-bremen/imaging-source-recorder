@@ -1,7 +1,11 @@
 [project]
 name = "imaging-source-recorder"
 version = "0.1.0"
-description = "Add your description here"
+description = "Desktop app for recording from Imaging Source Cameras"
+authors = [
+      {name = "Joscha Schmiedt", email = "schmiedt@brain.uni-bremen.de"},
+]
+
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
