@@ -2,11 +2,6 @@ import time
 import imagingcontrol4 as ic4
 from recorder import VideoRecorderInterface
 
-# try:
-#     ic4.Library.init()
-# except ic4.IC4Exception as ex:
-#     pass
-
 
 class ImagingSourceRecorder(VideoRecorderInterface):
     # interface methods

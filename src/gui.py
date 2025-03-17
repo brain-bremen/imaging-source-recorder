@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
         self.updateControls()
 
 
-def main():
+def main_gui():
     with ic4.Library.init_context():
         app = QApplication()
         app.setApplicationName("imaging-source-recorder")
@@ -425,4 +425,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_gui()

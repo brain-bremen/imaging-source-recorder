@@ -1,44 +1,11 @@
 import imagingcontrol4 as ic4
-
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, Signal, Slot
 from fastapi import FastAPI
 import uvicorn
 import threading
 
-from mainwindow import MainWindow
-
-from abc import ABC, abstractmethod
-
-
-class AppInterface(ABC):
-    @abstractmethod
-    def start_recording(self, filename: str | None = None):
-        pass
-
-    @abstractmethod
-    def stop_recording(self):
-        pass
-
-    @abstractmethod
-    def pause_recording(self):
-        pass
-
-    @abstractmethod
-    def resume_recording(self):
-        pass
-
-    @abstractmethod
-    def set_filename(self):
-        pass
-
-    @abstractmethod
-    def set_metadata(self):
-        pass
-
-    @abstractmethod
-    def receive_recording(self):
-        pass
+from gui import MainWindow
 
 
 # class QtAppInterface(QObject, AppInterface):
@@ -88,13 +55,7 @@ def imaging_source_recorder():
         app.setStyle("fusion")
 
         main_window = MainWindow()
-        # global app_interface
-        # app_interface = AppInterface(main_window)
-
         main_window.show()
-        # # Start FastAPI in a separate thread
-        # api_thread = threading.Thread(target=run_fastapi, daemon=True)
-        # api_thread.start()
         app.exec()
 
 
