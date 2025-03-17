@@ -41,43 +41,43 @@ class AppInterface(ABC):
         pass
 
 
-class QtAppInterface(QObject, AppInterface):
-    start_recording_signal = Signal()
-    stop_recording_signal = Signal()
+# class QtAppInterface(QObject, AppInterface):
+#     start_recording_signal = Signal()
+#     stop_recording_signal = Signal()
 
-    def __init__(self, main_window):
-        super().__init__()
-        self.main_window = main_window
+#     def __init__(self, main_window):
+#         super().__init__()
+#         self.main_window = main_window
 
-        # Connect signals to slots
-        self.start_recording_signal.connect(self.main_window.start_recording)
-        self.stop_recording_signal.connect(self.main_window.stop_recording)
+#         # Connect signals to slots
+#         self.start_recording_signal.connect(self.main_window.start_recording)
+#         self.stop_recording_signal.connect(self.main_window.stop_recording)
 
-    def start_recording(self):
-        self.start_recording_signal.emit()
+#     def start_recording(self):
+#         self.start_recording_signal.emit()
 
-    def stop_recording(self):
-        self.stop_recording_signal.emit()
-
-
-remote_app = FastAPI()
+#     def stop_recording(self):
+#         self.stop_recording_signal.emit()
 
 
-# Define your FastAPI endpoints here
-@remote_app.get("/start")
-def start_recording():
-    app_interface.start_recording()
-    return {"status": "recording started"}
+# remote_app = FastAPI()
 
 
-@remote_app.get("/stop")
-def stop_recording():
-    app_interface.stop_recording()
-    return {"status": "recording stopped"}
+# # Define your FastAPI endpoints here
+# @remote_app.get("/start")
+# def start_recording():
+#     # app_interface.start_recording()
+#     return {"status": "recording started"}
 
 
-def run_fastapi():
-    uvicorn.run(remote_app, host="0.0.0.0", port=8000)
+# @remote_app.get("/stop")
+# def stop_recording():
+#     app_interface.stop_recording()
+#     return {"status": "recording stopped"}
+
+
+# def run_fastapi():
+# uvicorn.run(remote_app, host="0.0.0.0", port=8000)
 
 
 def imaging_source_recorder():
@@ -88,13 +88,13 @@ def imaging_source_recorder():
         app.setStyle("fusion")
 
         main_window = MainWindow()
-        global app_interface
-        app_interface = AppInterface(main_window)
+        # global app_interface
+        # app_interface = AppInterface(main_window)
 
         main_window.show()
-        # Start FastAPI in a separate thread
-        api_thread = threading.Thread(target=run_fastapi, daemon=True)
-        api_thread.start()
+        # # Start FastAPI in a separate thread
+        # api_thread = threading.Thread(target=run_fastapi, daemon=True)
+        # api_thread.start()
         app.exec()
 
 
