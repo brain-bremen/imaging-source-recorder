@@ -4,4 +4,13 @@ A Qt-desktop app for recording from an Imaging Source Camera. Based on the [PySi
 
 ## Design goals
 
-- Provide desktop app to manually start/stop triggered recordings from  
+- [x] Provide desktop app to manually start/stop triggered recordings from Imaging Source Cameras
+- [ ] Allow starting/stopping of recordings with a given filename via RPC
+- [ ] Add metadata to recordings
+- [ ] Add retreiving last recorded file via HTTP
+
+## Execute the GUI with uv
+
+```
+uvx --from git+https://github.com/brain-bremen/imaging-source-recorder imaging-source-recorder-gui
+```
