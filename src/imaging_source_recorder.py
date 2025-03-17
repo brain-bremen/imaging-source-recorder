@@ -24,11 +24,19 @@ class ImagingSourceRecorder(VideoRecorderInterface):
             enable,
         )
 
+    def get_triggered_record_mode(self) -> bool:
+        return self.grabber.device_property_map.get_value_bool(ic4.PropId.TRIGGER_MODE)
+
     def is_streaming(self) -> bool:
         return self.grabber.is_streaming
 
     def is_recording(self) -> bool:
         return self.capture_to_video
+
+    def get_filename(self) -> str:
+        if not self.capture_to_video:
+            return ""
+        return self.filename
 
     def __init__(self):
         self.capture_to_video = False
@@ -95,6 +103,8 @@ class ImagingSourceRecorder(VideoRecorderInterface):
                 frame_rate=frame_rate,
             )
             self.capture_to_video = True
+
+            self.filename = file_name
         except ic4.IC4Exception as ex:
             self.capture_to_video = False
             raise ex

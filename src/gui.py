@@ -1,6 +1,6 @@
-from threading import Lock
+from threading import Lock, Thread
 from imaging_source_recorder import ImagingSourceRecorder
-
+from https_server import run_http_server
 from PySide6.QtCore import (
     QStandardPaths,
     QDir,
@@ -204,10 +204,17 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.camera_label)
         self.fps_label = QLabel(self.statusBar())
         self.statusBar().addPermanentWidget(self.fps_label)
+        self.filename_label = QLabel(self.statusBar())
+        self.statusBar().addPermanentWidget(self.filename_label)
 
         self.update_statistics_timer = QTimer()
         self.update_statistics_timer.timeout.connect(self.onUpdateStatisticsTimer)
         self.update_statistics_timer.start()
+
+        # Add a timer to update the controls periodically
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.updateControls)
+        self.update_timer.start(1000)  # Update every second
 
     def onCloseDevice(self):
         if self.recorder.is_streaming():
@@ -344,9 +351,9 @@ class MainWindow(QMainWindow):
         self.start_live_act.setEnabled(self.recorder.grabber.is_device_valid)
         self.start_live_act.setChecked(self.recorder.is_streaming())
         self.record_stop_act.setEnabled(self.recorder.is_recording())
-        # self.record_pause_act.setChecked(self.recorder.video_capture_pause)
         self.record_start_act.setEnabled(not self.recorder.capture_to_video)
         self.close_device_act.setEnabled(self.recorder.grabber.is_device_open)
+        self.filename_label.setText(self.recorder.get_filename())
 
         self.updateTriggerControl(None)
 
@@ -421,6 +428,11 @@ def main_gui():
 
         main_window = MainWindow()
         main_window.show()
+
+        # Start the HTTP server in a separate thread
+        http_thread = Thread(target=run_http_server, args=(main_window.recorder,))
+        http_thread.daemon = True
+        http_thread.start()
         app.exec()
 
 
