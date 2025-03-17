@@ -2,6 +2,8 @@
 
 A Qt-desktop app for recording from an Imaging Source Camera. Based on the [PySide6 demoapp](https://github.com/TheImagingSource/ic4-examples), licensed with the APACHE license.
 
+![Screenshot](images/screenshot.png)
+
 ## Design goals
 
 - [x] Provide desktop app to manually start/stop triggered recordings from Imaging Source Cameras
@@ -14,3 +16,5 @@ A Qt-desktop app for recording from an Imaging Source Camera. Based on the [PySi
 ```
 uvx --from git+https://github.com/brain-bremen/imaging-source-recorder imaging-source-recorder-gui
 ```
+
+
