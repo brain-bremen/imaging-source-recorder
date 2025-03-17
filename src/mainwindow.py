@@ -133,16 +133,9 @@ class MainWindow(QMainWindow):
         self.record_start_act = QAction(
             selector.loadIcon("images/recordstart.png"), "&Capture Video", self
         )
-        self.record_start_act.setToolTip("Capture vidoeo into MP4 file")
+        self.record_start_act.setToolTip("Capture video into MP4 file")
         self.record_start_act.setCheckable(True)
         self.record_start_act.triggered.connect(self.onStartStopCaptureVideo)
-
-        self.record_pause_act = QAction(
-            selector.loadIcon("images/recordpause.png"), "&Pause Capture Video", self
-        )
-        self.record_pause_act.setStatusTip("Pause video capture")
-        self.record_pause_act.setCheckable(True)
-        self.record_pause_act.triggered.connect(self.onPauseCaptureVideo)
 
         self.record_stop_act = QAction(
             selector.loadIcon("images/recordstop.png"), "&Stop Capture Video", self
@@ -180,7 +173,7 @@ class MainWindow(QMainWindow):
 
         capture_menu = self.menuBar().addMenu("&Capture")
         capture_menu.addAction(self.record_start_act)
-        capture_menu.addAction(self.record_pause_act)
+        # capture_menu.addAction(self.record_pause_act)
         capture_menu.addAction(self.record_stop_act)
         capture_menu.addAction(self.codec_property_act)
 
@@ -195,7 +188,7 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         toolbar.addSeparator()
         toolbar.addAction(self.record_start_act)
-        toolbar.addAction(self.record_pause_act)
+        # toolbar.addAction(self.record_pause_act)
         toolbar.addAction(self.record_stop_act)
         toolbar.addAction(self.codec_property_act)
 
@@ -209,14 +202,16 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(QLabel("  "))
         self.camera_label = QLabel(self.statusBar())
         self.statusBar().addPermanentWidget(self.camera_label)
+        self.fps_label = QLabel(self.statusBar())
+        self.statusBar().addPermanentWidget(self.fps_label)
 
         self.update_statistics_timer = QTimer()
         self.update_statistics_timer.timeout.connect(self.onUpdateStatisticsTimer)
         self.update_statistics_timer.start()
 
     def onCloseDevice(self):
-        if self.recorder.grabber.is_streaming:
-            self.startStopStream()
+        if self.recorder.is_streaming():
+            self.recorder.stop_streaming()
 
         try:
             self.recorder.grabber.device_close()
@@ -229,8 +224,8 @@ class MainWindow(QMainWindow):
         self.updateControls()
 
     def closeEvent(self, ev: QCloseEvent):
-        if self.recorder.grabber.is_streaming:
-            self.recorder.grabber.stream_stop()
+        if self.recorder.is_streaming():
+            self.recorder.stop_streaming()
 
         if self.recorder.grabber.is_device_valid:
             self.recorder.grabber.device_save_state_to_file(self.device_file)
@@ -271,7 +266,9 @@ class MainWindow(QMainWindow):
 
     def onToggleTriggerMode(self):
         try:
-            self.recorder.enable_trigger_mode(self.trigger_mode_act.isChecked())
+            self.recorder.enable_triggered_recording_mode(
+                self.trigger_mode_act.isChecked()
+            )
 
         except ic4.IC4Exception as e:
             QMessageBox.critical(self, "", f"{e}", QMessageBox.StandardButton.Ok)
@@ -293,6 +290,7 @@ class MainWindow(QMainWindow):
                 f"  Sink Underrun: {stats.sink_underrun}"
             )
             self.statistics_label.setToolTip(tooltip)
+            self.fps_label.setText(f"FPS: {self.recorder.get_frames_per_second():.2f}")
         except ic4.IC4Exception:
             pass
 
@@ -344,10 +342,10 @@ class MainWindow(QMainWindow):
             self.recorder.grabber.is_device_valid
         )
         self.start_live_act.setEnabled(self.recorder.grabber.is_device_valid)
-        self.start_live_act.setChecked(self.recorder.grabber.is_streaming)
-        self.record_stop_act.setEnabled(self.recorder.capture_to_video)
-        self.record_pause_act.setChecked(self.recorder.video_capture_pause)
-        self.record_start_act.setChecked(self.recorder.capture_to_video)
+        self.start_live_act.setChecked(self.recorder.is_streaming())
+        self.record_stop_act.setEnabled(self.recorder.is_recording())
+        # self.record_pause_act.setChecked(self.recorder.video_capture_pause)
+        self.record_start_act.setEnabled(not self.recorder.capture_to_video)
         self.close_device_act.setEnabled(self.recorder.grabber.is_device_open)
 
         self.updateTriggerControl(None)
@@ -363,8 +361,8 @@ class MainWindow(QMainWindow):
         self.recorder.video_capture_pause = self.record_pause_act.isChecked()
 
     def onStartStopCaptureVideo(self):
-        if self.recorder.capture_to_video:
-            self.stopCapturevideo()
+        if self.recorder.is_recording():
+            self.recorder.stop_recording()
             return
 
         filters = ["MP4 Video Files (*.mp4)"]
@@ -379,25 +377,19 @@ class MainWindow(QMainWindow):
             full_path = dialog.selectedFiles()[0]
             self.save_videos_directory = QFileInfo(full_path).absolutePath()
 
-            fps = float(25)
             try:
-                fps = self.recorder.get_frame_rate()
-            except:
-                pass
-
-            try:
-                self.recorder.video_writer.begin_file(
-                    full_path, self.recorder.sink.output_image_type, fps
+                self.recorder.start_recording(
+                    full_path,
+                    frame_rate=None,
+                    triggered_mode=self.trigger_mode_act.isChecked(),
                 )
             except ic4.IC4Exception as e:
                 QMessageBox.critical(self, "", f"{e}", QMessageBox.StandardButton.Ok)
 
-            self.recorder.capture_to_video = True
-
         self.updateControls()
 
     def onStopCaptureVideo(self):
-        self.recorder.stop_capture_video()
+        self.recorder.stop_recording()
         self.updateControls()
 
     def onCodecProperties(self):
@@ -412,9 +404,25 @@ class MainWindow(QMainWindow):
 
     def startStopStream(self):
         try:
-            self.recorder.start_stop_stream(self.display)
+            self.recorder.toggle_streaming(self.display)
 
         except ic4.IC4Exception as e:
             QMessageBox.critical(self, "", f"{e}", QMessageBox.StandardButton.Ok)
 
         self.updateControls()
+
+
+def main():
+    with ic4.Library.init_context():
+        app = QApplication()
+        app.setApplicationName("imaging-source-recorder")
+        app.setApplicationDisplayName("Imaging Source Recorder")
+        app.setStyle("fusion")
+
+        main_window = MainWindow()
+        main_window.show()
+        app.exec()
+
+
+if __name__ == "__main__":
+    main()

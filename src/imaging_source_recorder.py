@@ -1,11 +1,45 @@
+import time
 import imagingcontrol4 as ic4
+from recorder import VideoRecorderInterface
+
+# try:
+#     ic4.Library.init()
+# except ic4.IC4Exception as ex:
+#     pass
 
 
-class ImagingSourceRecorder:
+class ImagingSourceRecorder(VideoRecorderInterface):
+    # interface methods
+    def get_frame_rate(self) -> float:
+        return self.grabber.device_property_map.get_value_float(
+            ic4.PropId.ACQUISITION_FRAME_RATE
+        )
+
+    def start_streaming(self, display: ic4.Display | None = None):
+        if not self.grabber.is_device_valid:
+            return
+
+        if not self.grabber.is_streaming:
+            self.grabber.stream_setup(self.sink, display)
+            self.stream_start_time = time.perf_counter_ns()
+
+    def enable_triggered_recording_mode(self, enable: bool = True):
+        self.grabber.device_property_map.try_set_value(
+            ic4.PropId.TRIGGER_MODE,
+            enable,
+        )
+
+    def is_streaming(self) -> bool:
+        return self.grabber.is_streaming
+
+    def is_recording(self) -> bool:
+        return self.capture_to_video
+
     def __init__(self):
         self.capture_to_video = False
         self.video_capture_pause = False
         self.video_writer = ic4.VideoWriter(ic4.VideoWriterType.MP4_H264)
+        self.stream_start_time = 0
 
         class Listener(ic4.QueueSinkListener):
             def sink_connected(
@@ -42,26 +76,64 @@ class ImagingSourceRecorder:
     def load_state_from_file(self, filename: str):
         self.grabber.device_open_from_state_file(filename)
 
-    def get_frame_rate(self) -> float:
-        return self.grabber.device_property_map.get_value_float(
-            ic4.PropId.ACQUISITION_FRAME_RATE
-        )
+    def start_recording(
+        self, file_name, frame_rate=None, triggered_mode=False, settings=None
+    ):
+        if not self.grabber.is_device_valid:
+            self.capture_to_video = False
+            return
 
-    def enable_trigger_mode(self, enable: bool):
-        self.grabber.device_property_map.set_value_bool(
-            ic4.PropId.TRIGGER_MODE,
-            enable,
-        )
+        try:
+            self.enable_triggered_recording_mode(triggered_mode)
 
-    def stop_capture_video(self):
+            if not self.is_streaming():
+                self.start_streaming()
+
+            if frame_rate is None:
+                frame_rate = self.grabber.device_property_map.get_value_float(
+                    ic4.PropId.ACQUISITION_FRAME_RATE
+                )
+
+            self.video_writer.begin_file(
+                path=file_name,
+                image_type=self.sink.output_image_type,
+                frame_rate=frame_rate,
+            )
+            self.capture_to_video = True
+        except ic4.IC4Exception as ex:
+            self.capture_to_video = False
+            raise ex
+
+    def stop_recording(self):
         self.capture_to_video = False
         self.video_writer.finish_file()
 
-    def start_stop_stream(self, display: ic4.Display):
+    def stop_streaming(self):
+        if not self.grabber.is_device_valid:
+            return
+
+        if self.grabber.is_streaming:
+            self.grabber.stream_stop()
+
+    def toggle_streaming(self, display: ic4.Display | None = None):
         if self.grabber.is_device_valid:
             if self.grabber.is_streaming:
                 self.grabber.stream_stop()
-                if self.capture_to_video:
-                    self.stop_capture_video()
             else:
-                self.grabber.stream_setup(self.sink, display)
+                self.start_streaming(display)
+
+    def pause_recording(self):
+        self.video_capture_pause = True
+
+    def get_number_of_written_frames(self) -> int:
+        return self.grabber.stream_statistics.sink_delivered
+
+    def get_frames_per_second(self):
+        return (
+            self.grabber.stream_statistics.sink_delivered
+            / (time.perf_counter_ns() - self.stream_start_time)
+            * 1e9
+        )
+
+    def __del__(self):
+        self.grabber.device_close()
