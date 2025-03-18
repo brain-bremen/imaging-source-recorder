@@ -15,15 +15,22 @@ if not os.path.exists(RECORDINGS_DIR):
 app = FastAPI()
 recordings: Dict[str, Dict] = {}
 
+
 # Populate recordings with existing mp4 files in the recordings directory
-for filename in os.listdir(RECORDINGS_DIR):
-    if filename.endswith(".mp4"):
-        recording_id = str(len(recordings) + 1)
-        recordings[recording_id] = {
-            "filename": filename[:-4],  # Remove the .mp4 extension
-            "metadata": {},
-            "status": "stopped",
-        }
+def update_recordings_from_disk():
+    global recordings
+    recordings = {}
+    for filename in os.listdir(RECORDINGS_DIR):
+        if filename.endswith(".mp4"):
+            recording_id = str(len(recordings) + 1)
+            recordings[recording_id] = {
+                "filename": filename[:-4],  # Remove the .mp4 extension
+                "metadata": {},
+                "status": "stopped",
+            }
+
+
+update_recordings_from_disk()
 
 
 # Data models
@@ -132,6 +139,8 @@ async def get_recording(recording_id: str):
 @app.get("/recordings", response_model=Dict[str, RecordingResponse])
 async def list_recordings():
     available_recordings = {}
+    update_recordings_from_disk()
+
     for recording_id, recording in recordings.items():
         if recording["status"] == "stopped":
             available_recordings[recording_id] = {
@@ -156,3 +165,7 @@ def run_fastapi_server(
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=PORT)
+
+
+if __name__ == "__main__":
+    run_fastapi_server(start_recording_func, stop_recording_func)
