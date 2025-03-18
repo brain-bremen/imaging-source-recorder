@@ -210,7 +210,7 @@ def run_fastapi_server(
     stop_recording_func = stop_func
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    uvicorn.run(app, host=HOST, port=PORT)
 
 
 if __name__ == "__main__":
