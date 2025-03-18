@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from os import PathLike
 
+RECORDINGS_DIR = "recordings"
+
 
 class RecorderSettings(ABC):
     pass
