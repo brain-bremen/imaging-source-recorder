@@ -1,6 +1,6 @@
 from threading import Lock, Thread
 from imaging_source_recorder import ImagingSourceRecorder
-from https_server import run_http_server
+from simple_https_server import run_http_server
 from PySide6.QtCore import (
     QStandardPaths,
     QDir,
