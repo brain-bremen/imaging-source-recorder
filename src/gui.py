@@ -1,6 +1,6 @@
 from threading import Lock, Thread
 from imaging_source_recorder import ImagingSourceRecorder
-from simple_https_server import run_http_server
+from fastapi_http_server import run_http_server
 from PySide6.QtCore import (
     QStandardPaths,
     QDir,
@@ -19,9 +19,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QToolBar,
 )
-
 import imagingcontrol4 as ic4
-
 from resourceselector import ResourceSelector
 
 DEVICE_LOST_EVENT = QEvent.Type(QEvent.Type.User + 2)
@@ -430,7 +428,13 @@ def main_gui():
         main_window.show()
 
         # Start the HTTP server in a separate thread
-        http_thread = Thread(target=run_http_server, args=(main_window.recorder,))
+        http_thread = Thread(
+            target=run_http_server,
+            args=(
+                main_window.recorder.start_recording,
+                main_window.recorder.stop_recording,
+            ),
+        )
         http_thread.daemon = True
         http_thread.start()
         app.exec()

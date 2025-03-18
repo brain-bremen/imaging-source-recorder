@@ -4,9 +4,9 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Callable, Dict
 from fastapi.staticfiles import StaticFiles
+from recorder import RECORDINGS_DIR
 import os
 
-RECORDINGS_DIR = "recordings"
 PORT = 8000
 HOST = "localhost"
 
@@ -55,7 +55,7 @@ def update_recordings_from_disk() -> Dict[str, Recording]:
             recording_id = recording_id_from_video_filename(filename)
             metadata_filename = metadata_filename_from_recording_id(recording_id)
             metadata = {}
-            if os.path.exists(metadata_filename):
+            if os.path.exists(os.path.join(RECORDINGS_DIR, metadata_filename)):
                 try:
                     with open(
                         os.path.join(RECORDINGS_DIR, metadata_filename)
@@ -72,7 +72,9 @@ def update_recordings_from_disk() -> Dict[str, Recording]:
                 status=RecordingStatus.STOPPED,
                 video_url=url_from_filename(filename),
                 metadata_filename=metadata_filename,
-                metadata_url=url_from_filename(metadata_filename),
+                metadata_url=url_from_filename(metadata_filename)
+                if os.path.exists(os.path.join(RECORDINGS_DIR, metadata_filename))
+                else None,
             )
     return recordings
 
@@ -129,6 +131,14 @@ async def start_recording(request: StartRecordingRequest):
         raise HTTPException(
             status_code=400, detail="A recording is already in progress"
         )
+
+    # if filename has no extension add .mp4
+    if "." not in request.filename:
+        request.filename += ".mp4"
+
+    # make sure filename is a valid mp4 file
+    if not request.filename.endswith(".mp4"):
+        raise HTTPException(status_code=400, detail="Filename must end with .mp4")
 
     recording_id = recording_id_from_video_filename(request.filename)
     metadata_filename = metadata_filename_from_recording_id(recording_id)
@@ -202,9 +212,7 @@ async def list_recordings():
 app.mount("/files", StaticFiles(directory=RECORDINGS_DIR), name="files")
 
 
-def run_fastapi_server(
-    start_func: Callable[[str], None], stop_func: Callable[[], None]
-):
+def run_http_server(start_func: Callable[[str], None], stop_func: Callable[[], None]):
     global start_recording_func, stop_recording_func
     start_recording_func = start_func
     stop_recording_func = stop_func
@@ -214,4 +222,4 @@ def run_fastapi_server(
 
 
 if __name__ == "__main__":
-    run_fastapi_server(start_recording_func, stop_recording_func)
+    run_http_server(start_recording_func, stop_recording_func)

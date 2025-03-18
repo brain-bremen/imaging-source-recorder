@@ -1,6 +1,7 @@
 import time
 import imagingcontrol4 as ic4
-from recorder import VideoRecorderInterface
+from recorder import VideoRecorderInterface, RECORDINGS_DIR
+import os
 
 
 class ImagingSourceRecorder(VideoRecorderInterface):
@@ -98,7 +99,7 @@ class ImagingSourceRecorder(VideoRecorderInterface):
                 )
 
             self.video_writer.begin_file(
-                path=file_name,
+                path=os.path.join(RECORDINGS_DIR, file_name),
                 image_type=self.sink.output_image_type,
                 frame_rate=frame_rate,
             )
