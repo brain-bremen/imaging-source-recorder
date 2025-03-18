@@ -17,4 +17,11 @@ A Qt-desktop app for recording from an Imaging Source Camera. Based on the [PySi
 uvx --from git+https://github.com/brain-bremen/imaging-source-recorder imaging-source-recorder-gui
 ```
 
+## Distribute via pyinstaller (for Windows only)
 
+```
+# create new spec file
+pyinstaller .\src\gui.py  --collect-binaries imagingcontrol4 --add-data ".\images;images" --name "imaging-source-recorder" --contents-directory "." --window --icon .\images\tis.ico
+# or use existing
+pyinstaller imaging-source-recorder.spec
+```
