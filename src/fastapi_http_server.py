@@ -23,9 +23,16 @@ def update_recordings_from_disk():
     for filename in os.listdir(RECORDINGS_DIR):
         if filename.endswith(".mp4"):
             recording_id = str(len(recordings) + 1)
+            metadata = {}
+            if os.path.exists(os.path.join(RECORDINGS_DIR, f"{filename[:-4]}.json")):
+                with open(
+                    os.path.join(RECORDINGS_DIR, f"{filename[:-4]}.json")
+                ) as metadata_file:
+                    metadata = json.load(metadata_file)
+
             recordings[recording_id] = {
                 "filename": filename[:-4],  # Remove the .mp4 extension
-                "metadata": {},
+                "metadata": metadata,
                 "status": "stopped",
             }
 
