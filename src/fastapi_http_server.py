@@ -1,3 +1,4 @@
+from enum import Enum
 import json
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -7,47 +8,82 @@ import os
 
 RECORDINGS_DIR = "recordings"
 PORT = 8000
+HOST = "localhost"
+
+
+def url_from_filename(filename: str) -> str:
+    # strip folder from filename
+    filename = os.path.basename(filename)
+    return f"http://{HOST}:{PORT}/files/{filename}"
+
+
+def metadata_filename_from_recording_id(recording_id: str) -> str:
+    return f"{recording_id}.metadata.json"
+
+
+def recording_id_from_video_filename(filename: str) -> str:
+    return filename[:-4]
+
+
+class RecordingStatus(Enum):
+    STOPPED = "stopped"
+    RECORDING = "recording"
+
 
 # Ensure the recordings directory exists
 if not os.path.exists(RECORDINGS_DIR):
     os.makedirs(RECORDINGS_DIR)
 
 app = FastAPI()
-recordings: Dict[str, Dict] = {}
+
+
+class Recording(BaseModel):
+    recording_id: str  # basename without extension
+    video_filename: str
+    metadata_filename: str
+    metadata: Dict[str, str]
+    status: RecordingStatus
+    video_url: str
+    metadata_url: str | None = None
 
 
 # Populate recordings with existing mp4 files in the recordings directory
-def update_recordings_from_disk():
-    global recordings
-    recordings = {}
+def update_recordings_from_disk() -> Dict[str, Recording]:
+    recordings: Dict[str, Recording] = {}
     for filename in os.listdir(RECORDINGS_DIR):
         if filename.endswith(".mp4"):
-            recording_id = str(len(recordings) + 1)
+            recording_id = recording_id_from_video_filename(filename)
+            metadata_filename = metadata_filename_from_recording_id(recording_id)
             metadata = {}
-            if os.path.exists(os.path.join(RECORDINGS_DIR, f"{filename[:-4]}.json")):
-                with open(
-                    os.path.join(RECORDINGS_DIR, f"{filename[:-4]}.json")
-                ) as metadata_file:
-                    metadata = json.load(metadata_file)
+            if os.path.exists(metadata_filename):
+                try:
+                    with open(
+                        os.path.join(RECORDINGS_DIR, metadata_filename)
+                    ) as metadata_file:
+                        metadata = json.load(metadata_file)
+                except Exception as e:
+                    msg = f"Failed to load metadata for {filename}: {e}"
+                    metadata = {"error": msg}
 
-            recordings[recording_id] = {
-                "filename": filename[:-4],  # Remove the .mp4 extension
-                "metadata": metadata,
-                "status": "stopped",
-            }
+            recordings[recording_id] = Recording(
+                recording_id=recording_id,
+                video_filename=filename,
+                metadata=metadata,
+                status=RecordingStatus.STOPPED,
+                video_url=url_from_filename(filename),
+                metadata_filename=metadata_filename,
+                metadata_url=url_from_filename(metadata_filename),
+            )
+    return recordings
 
 
-update_recordings_from_disk()
+recordings: Dict[str, Recording] = update_recordings_from_disk()
 
 
 # Data models
 class StartRecordingRequest(BaseModel):
     filename: str
-
-
-class StartRecordingResponse(BaseModel):
-    message: str
-    recording_id: str
+    metadata: Dict[str, str] = {}
 
 
 class StopRecordingRequest(BaseModel):
@@ -56,7 +92,7 @@ class StopRecordingRequest(BaseModel):
 
 class StopRecordingResponse(BaseModel):
     message: str
-    filename: str
+    recording: Recording
 
 
 class AddMetadataRequest(BaseModel):
@@ -84,34 +120,48 @@ def stop_recording_func() -> None:
 
 
 # Endpoints
-@app.post("/recordings/start", response_model=StartRecordingResponse)
+@app.post("/recordings/start", response_model=Recording)
 async def start_recording(request: StartRecordingRequest):
-    if any(recording["status"] == "recording" for recording in recordings.values()):
+    if any(
+        recording.status == RecordingStatus.RECORDING
+        for recording in recordings.values()
+    ):
         raise HTTPException(
             status_code=400, detail="A recording is already in progress"
         )
-    recording_id = str(len(recordings) + 1)
-    recordings[recording_id] = {
-        "filename": request.filename,
-        "metadata": {},
-        "status": "recording",
-    }
+
+    recording_id = recording_id_from_video_filename(request.filename)
+    metadata_filename = metadata_filename_from_recording_id(recording_id)
+    with open(os.path.join(RECORDINGS_DIR, metadata_filename), "w") as metadata_file:
+        json.dump(request.metadata, metadata_file)
+
+    recordings[recording_id] = Recording(
+        recording_id=recording_id,
+        video_filename=request.filename,
+        metadata=request.metadata,
+        metadata_filename=metadata_filename,
+        status=RecordingStatus.RECORDING,
+        video_url=url_from_filename(request.filename),
+        metadata_url=url_from_filename(
+            metadata_filename_from_recording_id(recording_id)
+        ),
+    )
     start_recording_func(request.filename)
 
-    # Placeholder for actual recording logic
-    return {"message": "Recording started", "recording_id": recording_id}
+    return recordings[recording_id]
 
 
 @app.post("/recordings/stop", response_model=StopRecordingResponse)
 async def stop_recording(request: StopRecordingRequest):
     if request.recording_id not in recordings:
         raise HTTPException(status_code=404, detail="Recording ID not found")
-    recordings[request.recording_id]["status"] = "stopped"
+    recordings[request.recording_id].status = RecordingStatus.STOPPED
+
     stop_recording_func()
 
     return {
         "message": "Recording stopped",
-        "filename": recordings[request.recording_id]["filename"],
+        "recording": recordings[request.recording_id],
     }
 
 
@@ -119,43 +169,32 @@ async def stop_recording(request: StopRecordingRequest):
 async def add_metadata(request: AddMetadataRequest):
     if request.recording_id not in recordings:
         raise HTTPException(status_code=404, detail="Recording ID not found")
-    recordings[request.recording_id]["metadata"] = request.metadata
-    metadata_filename = os.path.join(
-        RECORDINGS_DIR, f"{recordings[request.recording_id]['filename']}.json"
-    )
-    with open(metadata_filename, "w") as metadata_file:
+    recordings[request.recording_id].metadata = request.metadata
+    metadata_filename = metadata_filename_from_recording_id(request.recording_id)
+    with open(os.path.join(RECORDINGS_DIR, metadata_filename), "w") as metadata_file:
         json.dump(request.metadata, metadata_file)
     return {"message": "Metadata added"}
 
 
-@app.get("/recordings/{recording_id}", response_model=RecordingResponse)
+@app.get("/recordings/{recording_id}", response_model=Recording)
 async def get_recording(recording_id: str):
     if recording_id not in recordings:
         raise HTTPException(status_code=404, detail="Recording ID not found")
     recording = recordings[recording_id]
-    if recording["status"] != "stopped":
+    if recording.status != RecordingStatus.STOPPED:
         raise HTTPException(status_code=400, detail="Recording is not yet stopped")
-    return {
-        "recording_id": recording_id,
-        "filename": recording["filename"],
-        "metadata": recording["metadata"],
-        "file_url": f"http://localhost:8000/files/{recording['filename']}.mp4",
-    }
+    return recordings[recording_id]
 
 
-@app.get("/recordings", response_model=Dict[str, RecordingResponse])
+@app.get("/recordings", response_model=Dict[str, Recording])
 async def list_recordings():
     available_recordings = {}
-    update_recordings_from_disk()
+    # update_recordings_from_disk()
 
     for recording_id, recording in recordings.items():
-        if recording["status"] == "stopped":
-            available_recordings[recording_id] = {
-                "recording_id": recording_id,
-                "filename": recording["filename"],
-                "metadata": recording["metadata"],
-                "file_url": f"http://localhost:8000/files/{recording['filename']}.mp4",
-            }
+        if recording.status == RecordingStatus.STOPPED:
+            available_recordings[recording_id] = recording
+
     return available_recordings
 
 
