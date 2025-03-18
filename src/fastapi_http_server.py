@@ -8,6 +8,10 @@ import os
 RECORDINGS_DIR = "recordings"
 PORT = 8000
 
+# Ensure the recordings directory exists
+if not os.path.exists(RECORDINGS_DIR):
+    os.makedirs(RECORDINGS_DIR)
+
 app = FastAPI()
 recordings: Dict[str, Dict] = {}
 
@@ -138,10 +142,6 @@ async def list_recordings():
             }
     return available_recordings
 
-
-# Ensure the recordings directory exists
-if not os.path.exists(RECORDINGS_DIR):
-    os.makedirs(RECORDINGS_DIR)
 
 # Mount static files route
 app.mount("/files", StaticFiles(directory=RECORDINGS_DIR), name="files")
